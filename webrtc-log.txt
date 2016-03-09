@@ -1,0 +1,153 @@
+
+
+[9] STUN ping
+
+[8] linux virtual box load usb camera
+
+	First install corresponding vb guest addition tools
+	virtualbox download:
+	https://www.virtualbox.org/wiki/Downloads
+	
+
+[7] server test
+
+	webrtc.googlecode.com/svn/branches/42/talk/examples/peerconnection/server/server_test/html
+
+
+[6] network failed with error 101
+
+	101：网络不可达，比如不能ping通
+	http://blog.csdn.net/zimu2702/article/details/8060654
+
+
+[5] peerconnection_client double click
+
+	$ lsusb
+	(no carmer)
+	$ ls /dev | grep video
+	(no /dev/video0, since server and client runs on a desktop without camera)
+	$ scp -r xxx xxx
+	(cp server and client to a laptop with webcam)
+	$ ./peerconnection_server/client
+	(double click to connect peer)
+	------------------------------------------------------------------------
+[-->error]
+(linuxdevicemanager.cc:225): Enumerating V4L2 devices
+(linuxdevicemanager.cc:260): Unable to detect v4l2 metadata directory
+(linuxdevicemanager.cc:264): Plan B. Scanning all video devices in /dev directory
+(linuxdevicemanager.cc:268): Total V4L2 devices found : 0
+(common.cc:59): ../../webrtc/api/videosource.cc(290): ASSERT FAILED: capturer != NULL @ Create
+Trace/breakpoint trap
+
+
+[4] proxy setup
+
+	http://blog.sina.com.cn/s/blog_496be0db0102voit.html
+	$ vim ~/.boto
+		[Boto]
+		proxy = child-prc.intel.com
+		proxy_port = 913
+	$ export NO_AUTH_BOTO_CONFIG=/home/xy/.boto
+	$ . ~/.boto
+	$ gclient sync
+	-----------------------------------------------------
+[-->error]
+NOTICE: You have PROXY values set in your environment, but gsutil in depot_tools does not (yet) obey them.
+Also, --no_auth prevents the normal BOTO_CONFIG environment variable from being used.
+To use a proxy in this situation, please supply those settings in a .boto file pointed to by the NO_AUTH_BOTO_CONFIG environment var.
+
+________ running '/usr/bin/python src/webrtc/build/gyp_webrtc -Dextra_gyp_flag=0' in '/home/xy/webrtc-org'
+Updating projects from gyp files...
+
+
+[3] set up the webrtc dependency
+
+	$ ./build/install-build-deps.sh
+	$ gclient sync
+	--------------------------------
+[-->error]
+Hook 'download_from_google_storage --directory --recursive --num_threads=10 --no_auth --quiet --bucket chromium-webrtc-resources src/resources' took 672.74 secs
+
+________ running '/usr/bin/python src/webrtc/build/gyp_webrtc -Dextra_gyp_flag=0' in '/home/xy/webrtc-org'
+Updating projects from gyp files...
+Package glib-2.0 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `glib-2.0.pc'
+to the PKG_CONFIG_PATH environment variable
+No package 'glib-2.0' found
+Package gobject-2.0 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `gobject-2.0.pc'
+to the PKG_CONFIG_PATH environment variable
+No package 'gobject-2.0' found
+Package gthread-2.0 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `gthread-2.0.pc'
+to the PKG_CONFIG_PATH environment variable
+No package 'gthread-2.0' found
+Package gtk+-2.0 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `gtk+-2.0.pc'
+to the PKG_CONFIG_PATH environment variable
+No package 'gtk+-2.0' found
+gyp: Call to 'pkg-config --libs-only-l glib-2.0 gobject-2.0 gthread-2.0 gtk+-2.0' returned exit status 1 while in webrtc/webrtc_examples.gyp.
+Package gobject-2.0 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `gobject-2.0.pc'
+to the PKG_CONFIG_PATH environment variable
+No package 'gobject-2.0' found
+Package gthread-2.0 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `gthread-2.0.pc'
+to the PKG_CONFIG_PATH environment variable
+No package 'gthread-2.0' found
+Package gtk+-2.0 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `gtk+-2.0.pc'
+to the PKG_CONFIG_PATH environment variable
+No package 'gtk+-2.0' found
+gyp: Call to 'pkg-config --cflags gobject-2.0 gthread-2.0 gtk+-2.0' returned exit status 1 while in webrtc/media/media.gyp.
+Error: Command '/usr/bin/python src/webrtc/build/gyp_webrtc -Dextra_gyp_flag=0' returned non-zero exit status 1 in /home/xy/webrtc-org
+
+
+[2] raise child_exception
+	
+	http://stackoverflow.com/questions/13868314/raise-child-exception-oserror-errno-2-no-such-file-error
+	$ sudo apt-get install curl
+	$ gclient sync
+	-----------------------------------------------------------------------------------------------------
+[-->error]
+	subprocess report child_exception because lack of tools in the args.
+	so, do the follow command:
+	sudo apt-get install curl (the first arg in args is curl)
+	
+
+[1] gclient sync webrtc
+
+	http://stackoverflow.com/questions/25481638/webrtc-build-directory-not-found
+	----------------------------------------
+[-->error]
+________ running '/usr/bin/python src/build/landmines.py' in '/home/xy/webrtc-org/src/chromium'
+
+________ running '/usr/bin/python src/build/download_nacl_toolchains.py --mode nacl_core_sdk sync --extract' in '/home/xy/webrtc-org/src/chromium'
+
+________ running '/usr/bin/python src/build/android/play_services/update.py download' in '/home/xy/webrtc-org/src/chromium'
+
+________ running '/usr/bin/python src/build/linux/sysroot_scripts/install-sysroot.py --running-as-hook' in '/home/xy/webrtc-org/src/chromium'
+Error: Command '/usr/bin/python src/build/linux/sysroot_scripts/install-sysroot.py --running-as-hook' returned non-zero exit status 1 in /home/xy/webrtc-org/src/chromium
+Installing Debian Wheezy amd64 root image: /home/xy/webrtc-org/src/chromium/src/build/linux/debian_wheezy_amd64-sysroot
+Downloading http://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/c52471d9dec240c8d0a88fa98aa1eefeee32e22f/debian_wheezy_amd64_sysroot.tgz
+Traceback (most recent call last):
+  File "src/build/linux/sysroot_scripts/install-sysroot.py", line 221, in <module>
+    sys.exit(main(sys.argv[1:]))
+  File "src/build/linux/sysroot_scripts/install-sysroot.py", line 150, in main
+    InstallDefaultSysroots()
+  File "src/build/linux/sysroot_scripts/install-sysroot.py", line 124, in InstallDefaultSysroots
+    InstallSysroot(host_arch)
+  File "src/build/linux/sysroot_scripts/install-sysroot.py", line 207, in InstallSysroot
+    ['curl', '--fail', '--retry', '3', '-L', url, '-o', tarball])
+  File "/usr/lib/python2.7/subprocess.py", line 506, in check_call
+    retcode = call(*popenargs, **kwargs)
+  File "/usr/lib/python2.7/subprocess.py", line 493, in call
+    return Popen(*popenargs, **kwargs).wait()
+  File "/usr/lib/python2.7/subprocess.py", line 679, in __init__
+    errread, errwrite)
+  File "/usr/lib/python2.7/subprocess.py", line 1249, in _execute_child
+    raise child_exception
+OSError: [Errno 2] No such file or directory
+Error: Command '/usr/bin/python -u src/sync_chromium.py --target-revision 4d6ba6e034703125e3b1218d499611ef3919feb6' returned non-zero exit status 2 in /home/xy/webrtc-org
+Hook '/usr/bin/python -u src/sync_chromium.py --target-revision 4d6ba6e034703125e3b1218d499611ef3919feb6' took 25603.69 secs
+

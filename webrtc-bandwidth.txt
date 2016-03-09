@@ -1,0 +1,439 @@
+
+
+[10] set bandwidth
+
+[api/webrtcsdp.cc]
+bool ParseContent(const std::string& message,
+                  const MediaType media_type,
+                  int mline_index,
+                  const std::string& protocol,
+                  const std::vector<int>& codec_preference,
+                  size_t* pos,
+                  std::string* content_name,
+                  MediaContentDescription* media_desc,
+                  TransportDescription* transport,
+                  std::vector<JsepIceCandidate*>* candidates,
+                  SdpParseError* error) 
+	media_desc->set_bandwidth(b * 1000);
+
+
+[pc/mediasession.cc]
+bool MediaSessionDescriptionFactory::AddVideoContentForOffer(
+    const MediaSessionOptions& options,
+    const SessionDescription* current_description,
+    const RtpHeaderExtensions& video_rtp_extensions,
+    const VideoCodecs& video_codecs,
+    StreamParamsVec* current_streams,
+    SessionDescription* desc)
+	video->set_bandwidth(options.video_bandwidth);
+
+SessionDescription* MediaSessionDescriptionFactory::CreateOffer
+	AddDataContentForOffer(options_copy, current_description,
+                                    &data_codecs, &current_streams,
+                                    offer.get())
+
+
+[9] PeerConnection::CreateOffer
+
+[api/peerconnection.cc]
+void PeerConnection::CreateOffer(CreateSessionDescriptionObserver* observer, const RTCOfferAnswerOptions& options)
+
+[examples/peerconnection/client/conductor.cc]
+void Conductor::ConnectToPeer(int peer_id)
+	InitializePeerConnection()
+		peer_connection_->CreateOffer(this, NULL);
+
+bool Conductor::ReinitializePeerConnectionForLoopback() 
+	peer_connection_->CreateOffer(this, NULL);
+
+
+[8] AudioContentDescription
+
+[pc/mediasession.h]
+class MediaContentDescription : public ContentDescription
+	int bandwidth() const { return bandwidth_; }
+====>	int bandwidth_ = kAutoBandwidth;
+	void set_bandwidth(int bandwidth) { bandwidth_ = bandwidth; }
+
+[pc/mediasession.cc]
+bool MediaSessionDescriptionFactory::AddVideoContentForOffer(const MediaSessionOptions& options, ...)
+	CreateMediaContentOffer(
+	          options,
+	          video_codecs,
+	          sdes_policy,
+	          GetCryptos(GetFirstVideoContentDescription(current_description)),
+	          crypto_suites,
+	          video_rtp_extensions,
+	          add_legacy_,
+	          current_streams,
+	          video.get())
+	video->set_bandwidth(options.video_bandwidth);
+
+SessionDescription* MediaSessionDescriptionFactory::CreateOffer(const MediaSessionOptions& options, const SessionDescription* current_description) 
+	AddVideoContentForOffer(options, current_description, video_rtp_extensions, video_codecs, &current_streams, offer.get())
+
+[api/webrtcsessiondescriptionfactory.h]
+cricket::MediaSessionDescriptionFactory session_desc_factory_;
+
+[api/webrtcsessiondescriptionfactory.cc]
+	session_desc_factory_(channel_manager, &transport_desc_factory_)
+
+void WebRtcSessionDescriptionFactory::InternalCreateOffer(CreateSessionDescriptionRequest request) 
+	cricket::SessionDescription* desc(
+		session_desc_factory_.CreateOffer(request.options, session_->local_description()
+                           ? session_->local_description()->description()
+                           : nullptr
+		)
+	);
+
+void WebRtcSessionDescriptionFactory::CreateOffer(
+    CreateSessionDescriptionObserver* observer,
+    const PeerConnectionInterface::RTCOfferAnswerOptions& options,
+    const cricket::MediaSessionOptions& session_options) 
+	CreateSessionDescriptionRequest request(CreateSessionDescriptionRequest::kOffer, observer, session_options);
+	InternalCreateOffer(request)
+
+[api/webrtcsession.cc]
+void WebRtcSession::CreateOffer(
+    CreateSessionDescriptionObserver* observer,
+    const PeerConnectionInterface::RTCOfferAnswerOptions& options,
+    const cricket::MediaSessionOptions& session_options) {
+  	webrtc_session_desc_factory_->CreateOffer(observer, options, session_options);
+}
+
+[api/webrtcsession.h]
+rtc::scoped_ptr<WebRtcSessionDescriptionFactory> webrtc_session_desc_factory_;
+rtc::scoped_ptr<WebRtcSession> session_;
+
+[api/peerconnection.cc]
+void PeerConnection::CreateOffer(CreateSessionDescriptionObserver* observer, const RTCOfferAnswerOptions& options)
+	cricket::MediaSessionOptions session_options;
+	GetOptionsForOffer(options, &session_options)
+	session_->CreateOffer(observer, options, session_options);
+
+
+bool PeerConnection::GetOptionsForOffer(const PeerConnectionInterface::RTCOfferAnswerOptions& rtc_options,
+    cricket::MediaSessionOptions* session_options)
+	if (session_->local_description()) {
+    		for (const cricket::ContentInfo& content : session_->local_description()->description()->contents()) {
+      			session_options->transport_options[content.name] = cricket::TransportOptions();
+    		}
+  	}
+
+[pc/mediasession.h]
+struct MediaSessionOptions {
+  MediaSessionOptions() :
+      recv_audio(true),
+      recv_video(false),
+      data_channel_type(DCT_NONE),
+      is_muc(false),
+      vad_enabled(true),  // When disabled, removes all CN codecs from SDP.
+      rtcp_mux_enabled(true),
+      bundle_enabled(false),
+      video_bandwidth(kAutoBandwidth),
+      data_bandwidth(kDataMaxBandwidth) {
+  }
+  ...
+  std::map<std::string, TransportOptions> transport_options;
+
+====> const int kAutoBandwidth = -1;
+
+
+[7] MediaContentDescription
+
+[api/peerconnection.cc]
+void PeerConnection::SetLocalDescription(SetSessionDescriptionObserver* observer, SessionDescriptionInterface* desc)
+	const cricket::ContentInfo* audio_content = GetFirstAudioContent(desc->description());
+	const cricket::AudioContentDescription* audio_desc = static_cast<const cricket::AudioContentDescription*>(audio_content->description);
+		
+
+[6] desc --> session_description --> sdp --> jmessage[kCandidateSdpName] --> message --> Conductor::OnMessage(peer_id, message)
+
+[p2p/base/sessiondescription.h]
+class SessionDescription-->
+struct ContentInfo-->
+
+
+
+[examples/peerconnection/client/conductor.cc]
+void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc)
+	desc->ToString(&sdp);
+
+
+void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) 
+	candidate->ToString(&sdp)
+
+[api/peerconnection.h]
+PeerConnection::OnIceCandidate(const IceCandidateInterface* candidate) override
+
+[p2p/base/candidate.h]
+Candidate(int component,
+            const std::string& protocol,
+            const rtc::SocketAddress& address,
+            uint32_t priority,
+            const std::string& username,
+            const std::string& password,
+            const std::string& type,
+            uint32_t generation,
+            const std::string& foundation)
+      : id_(rtc::CreateRandomString(8)),
+        component_(component),
+        protocol_(protocol),
+        address_(address),
+        priority_(priority),
+        username_(username),
+        password_(password),
+        type_(type),
+        network_type_(rtc::ADAPTER_TYPE_UNKNOWN),
+        generation_(generation),
+        foundation_(foundation) {}
+
+[5] include
+
+examper/peerconnection/client/conductor.h
+api/peerconnectioninterface.h
+api/jsep.h	
+	webrtc::SessionDescriptionInterface
+	webrtc::IceCandidateCollection
+	webrtc::IceCandidateInterface
+
+	SessionDescriptionInterface* CreateSessionDescription(const std::string& type,
+	                                                      const std::string& sdp,
+        	                                              SdpParseError* error);
+
+
+[4] Descritpion
+
+-------------------------------------------------------------------------------------------------------
+[]
+
+
+[3] peerconnection_client
+
+-------------------------------------------------------------------------------------------------------
+[main.cc]
+
+	PeerConnectionClient client;
+	rtc::scoped_refptr<Conductor> conductor( new rtc::RefCountedObject<Conductor>(&client, &wnd) ) 
+
+	conductor->connection_active()
+
+-------------------------------------------------------------------------------------------------------
+[conductor.h]
+
+class Conductor
+: public webrtc::PeerConnectionObserver,
+  public webrtc::CreateSessionDescriptionObserver,
+  public PeerConnectionClientObserver,
+  public MainWndCallback
+
+	rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_
+	PeerConnectionClient* client_	
+
+-------------------------------------------------------------------------------------------------------
+[peer_connection_client.h]
+
+	class PeerConnectionClient : public sigslot::has_slots<>, public rtc::MessageHandler
+
+struct PeerConnectionClientObserver {
+  virtual void OnSignedIn() = 0;  // Called when we're logged on.
+  virtual void OnDisconnected() = 0;
+  virtual void OnPeerConnected(int id, const std::string& name) = 0;
+  virtual void OnPeerDisconnected(int peer_id) = 0;
+  virtual void OnMessageFromPeer(int peer_id, const std::string& message) = 0;
+  virtual void OnMessageSent(int err) = 0;
+  virtual void OnServerConnectionFailure() = 0;
+
+ protected:
+  virtual ~PeerConnectionClientObserver() {}
+};
+	
+	void RegisterObserver(PeerConnectionClientObserver* callback);
+
+-------------------------------------------------------------------------------------------------------
+[peer_connection_client.cc]
+
+void PeerConnectionClient::RegisterObserver(PeerConnectionClientObserver* callback) {
+  ASSERT(!callback_);
+  callback_ = callback;
+}
+
+void PeerConnectionClient::OnMessageFromPeer(int peer_id, const std::string& message) {
+  if (message.length() == (sizeof(kByeMessage) - 1) &&
+      message.compare(kByeMessage) == 0) {
+    callback_->OnPeerDisconnected(peer_id);
+  } else {
+    callback_->OnMessageFromPeer(peer_id, message);
+  }
+}
+
+
+-------------------------------------------------------------------------------------------------------
+[conductor.cc]
+
+Conductor::Conductor(PeerConnectionClient* client, MainWindow* main_wnd)
+  : peer_id_(-1),
+    loopback_(false),
+    client_(client),
+    main_wnd_(main_wnd) {
+  client_->RegisterObserver(this);
+  main_wnd->RegisterObserver(this);
+}
+
+void Conductor::OnMessageFromPeer(int peer_id, const std::string& message)
+	InitializePeerConnection()
+	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription(type, sdp, &error));
+		
+	peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create(), session_description)
+	if (session_description->type() ==  webrtc::SessionDescriptionInterface::kOffer) {
+      		peer_connection_->CreateAnswer(this, NULL);
+    	}
+
+bool Conductor::InitializePeerConnection() 
+	CreatePeerConnection(DTLS_ON)
+
+Conductor::CreatePeerConnection(bool dtls)
+	peer_connection_ = peer_connection_factory_->CreatePeerConnection(config, &constraints, NULL, NULL, this);
+
+bool Conductor::connection_active() const {
+  return peer_connection_.get() != NULL;
+}
+
+-------------------------------------------------------------------------------------------------------
+
+[2]
+
+8 
+Conductor::onMessageFromPeer(int peer_id, const std::string& message)
+	peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create(), session_description);
+
+Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc)
+	peer_connection_->SetLocalDescription(DummySetSessionDescriptionObserver::Create(), desc);
+	peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create(), session_description);
+
+
+7 class PeerConnectionTestClient : public webrtc::PeerConnectionObserver,
+                                 public SignalingMessageReceiver,
+                                 public ObserverInterface 
+	bool DoSetRemoteDescription(SessionDescriptionInterface* desc) {
+    		rtc::scoped_refptr<MockSetSessionDescriptionObserver>
+        		observer(new rtc::RefCountedObject<
+            			MockSetSessionDescriptionObserver>());
+    		LOG(INFO) << id_ << "SetRemoteDescription ";
+    		pc()->SetRemoteDescription(observer, desc);
+    		EXPECT_TRUE_WAIT(observer->called(), kMaxWaitMs);
+    		return observer->result();
+  	}
+
+class PeerConnection : public PeerConnectionInterface,
+                       public IceObserver,
+                       public rtc::MessageHandler,
+                       public sigslot::has_slots<>
+	  void SetRemoteDescription(SetSessionDescriptionObserver* observer, SessionDescriptionInterface* desc) override;
+
+
+
+6 PeerConnection::SetRemoteDescription(SetSessionDescriptionObserver* observer, SessionDescriptionInterface* desc)
+	rtc::scoped_ptr<WebRtcSession> session_->SetRemoteDescription(desc, &error)
+
+namespace cricket {
+class ChannelManager;
+class TransportDescriptionFactory;
+}  // namespace cricket
+
+namespace webrtc {
+class CreateSessionDescriptionObserver;
+class MediaConstraintsInterface;
+class SessionDescriptionInterface;
+class WebRtcSession;
+...
+}
+
+5 WebRtcSession::SetRemoteDescription(SessionDescriptionInterface* desc, std::string* err_desc)
+	rtc::scoped_ptr<SessionDescriptionInterface> desc_temp(desc);
+	rtc::scoped_ptr<SessionDescriptionInterface> remote_desc_.reset(desc_temp.release())
+
+
+WebRtcSession::UpdateSessionState(Action action, cricket::ContentSource source, std::string* err_desc)
+	PushdownMediaDescription(cricket::CA_OFFER, source, err_desc)
+	PushdownMediaDescription(cricket::CA_PRANSWER, source, err_desc)
+	PushdownMediaDescription(cricket::CA_ANSWER, source, err_desc)
+
+WebRtcSession
+	WebRtcSession::CreateVideoChannel(video)
+		rtc::scoped_ptr<cricket::VideoChannel> video_channel_(video->name)
+	video_channel() --> video_channel_ 
+
+4 WebRtcSession::PushdownMediaDescription(cricket::ContentAction action,cricket::ContentSource source,std::string* err) {
+  auto set_content = [this, action, source, err](cricket::BaseChannel* ch) {
+    if (!ch) {
+      return true;
+    } else if (source == cricket::CS_LOCAL) {
+      return ch->PushdownLocalDescription(local_desc_->description(), action,
+                                          err);
+    } else {
+      return ch->PushdownRemoteDescription(remote_desc_->description(), action,
+                                           err);
+    }
+  }
+  return (set_content(voice_channel()) &&
+          set_content(video_channel()) &&
+          set_content(data_channel()));
+
+}
+
+3 BaseChannel::PushdownRemoteDescription(const SessionDescription* remote_desc, ContentAction action, std::string* error_desc)
+	const ContentInfo* content_info = GetFirstContent(remote_desc);
+	const MediaContentDescription* content_desc = GetContentDescription(content_info);
+	SetRemoteContent(content_desc, action, error_desc)
+
+2 BaseChannel::SetRemoteContent(const MediaContentDescription* content, ContentAction action, std::string* error_desc)
+	1.DateChannel::SetRemoteContent_w()
+	2.VideoChannel::SetRemoteContent_w()
+		send_params=RtpSendParametersFromMediaDescription(video,&send_params)  [otherwise =last_send_params_]
+
+	3.VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content, ContentAction action, std::string* error_desc)
+		AudioContentDescription* audio=static_cast<const AudioContentDescription*>(content)
+		send_params=RtpSendParametersFromMediaDescription(audio,&send_params)  [otherwise =last_send_params_]
+
+			RtpParametersFromMediaDescription(desc, send_params)
+			send_params->max_bandwidth_bps = desc->bandwidth()
+		media_channel()->SetSendParameters(send_params)
+
+1 SetSendParameters(AudioSendParameters& params)
+	SetMaxSendBandwidth(params.max_bandwidth_bps=-1 [audio->bandwidth()=-1?] )
+		SetSendBitrateInternal(bps)
+			send_bitrate_bps_=bps=-1
+
+
+
+[1] bandwidth
+
+	video_send_stream.cc
+
+(video_send_stream.cc:354): (Re)configureVideoEncoder: {streams: [{width: 176, height: 144, max_framerate: 60, min_bitrate_bps:30000, target_bitrate_bps:600000, max_bitrate_bps:600000, max_qp: 56, temporal_layer_thresholds_bps: []}], content_type: kRealtimeVideo, encoder_specific_settings: (ptr), min_transmit_bitrate_bps: 0}
+
+
+
+media/engine/webrtcvoiceengine.cc
+	webrtc:	Playout underflow
+
+	
+	
+
+
+video_send_stream
+	VideoEncoderConfig& config 
+		std::vector<VideoStream> streams
+			width/height/max_framerate/min_bitrate_bps/target_bitrate_bps/max_bitrate_bps/max_qp/temporal_layer_thresholds_bps
+			contentType
+			encoder_specific_settings
+			min_transmit_bitrate_bps
+	if temporal_layer_threholds_bps.size == 1
+		video_codec.targetBitrate = temporal_layer_thresholds_bps[0] / 1000
+	vie_channel_.SetSendCodec(video_codec, false)
+	ViEChannel::StartSend
+		std::vector<RtpRtcp*> rtp_rtcp_modules_[0]->Sending()
+
+
+

@@ -1,0 +1,12 @@
+
+
+[2] get google depot tools
+
+	
+
+[1] set up Ubuntu env
+
+	proxy
+	vim
+	terminator
+	

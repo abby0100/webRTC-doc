@@ -1,0 +1,99 @@
+
+
+[2] bandwidth
+
+[pc/mediasession.cc]
+	scoped_ptr<VideoContentDescription> video(new VideoContentDescription());
+	video->set_bandwidth(options.video_bandwidth);
+
+[pc/mediasession.h]
+class VideoContentDescription : public MediaContentDescriptionImpl<VideoCodec> 
+
+class MediaContentDescriptionImpl : public MediaContentDescription 
+
+class MediaContentDescription : public ContentDescription 
+	MediaContentDescritpion::bandwidth_ = kAutoBandwidth;
+	void set_bandwidth(int bandwidth) { bandwidth_ = bandwidth; }
+
+
+--------------------------------------------------------------------------------------------------------------
+
+[1] set bandwidth
+
+[api/webrtcsession.h]
+rtc::scoped_ptr<WebRtcSessionDescriptionFactory> webrtc_session_desc_factory_;
+rtc::scoped_ptr<WebRtcSession> session_;
+
+[api/peerconnection.cc]
+void PeerConnection::CreateOffer(CreateSessionDescriptionObserver* observer, const RTCOfferAnswerOptions& options)
+        cricket::MediaSessionOptions session_options;
+        GetOptionsForOffer(options, &session_options)
+        session_->CreateOffer(observer, options, session_options);
+
+[pc/mediasession.h]
+struct MediaSessionOptions {
+  MediaSessionOptions() :
+      recv_audio(true),
+      recv_video(false),
+      data_channel_type(DCT_NONE),
+      is_muc(false),
+      vad_enabled(true),  // When disabled, removes all CN codecs from SDP.
+      rtcp_mux_enabled(true),
+      bundle_enabled(false),
+      video_bandwidth(kAutoBandwidth),
+      data_bandwidth(kDataMaxBandwidth) {
+  }
+
+[api/webrtcsession.cc]
+void WebRtcSession::CreateOffer(
+    CreateSessionDescriptionObserver* observer,
+    const PeerConnectionInterface::RTCOfferAnswerOptions& options,
+    const cricket::MediaSessionOptions& session_options) {
+        webrtc_session_desc_factory_->CreateOffer(observer, options, session_options);
+}
+
+[api/webrtcsession.h]
+rtc::scoped_ptr<WebRtcSessionDescriptionFactory> webrtc_session_desc_factory_;
+rtc::scoped_ptr<WebRtcSession> session_;
+
+[api/webrtcsessiondescriptionfactory.cc]
+void WebRtcSessionDescriptionFactory::CreateOffer(
+    CreateSessionDescriptionObserver* observer,
+    const PeerConnectionInterface::RTCOfferAnswerOptions& options,
+    const cricket::MediaSessionOptions& session_options)
+        CreateSessionDescriptionRequest request(CreateSessionDescriptionRequest::kOffer, observer, session_options);
+        InternalCreateOffer(request)
+
+void WebRtcSessionDescriptionFactory::InternalCreateOffer(CreateSessionDescriptionRequest request)
+        cricket::SessionDescription* desc(
+                session_desc_factory_.CreateOffer(request.options, session_->local_description()
+                           ? session_->local_description()->description()
+                           : nullptr
+                )
+        );
+
+[api/webrtcsessiondescriptionfactory.h]
+cricket::MediaSessionDescriptionFactory session_desc_factory_;
+
+[pc/mediasession.cc]
+SessionDescription* MediaSessionDescriptionFactory::CreateOffer(const MediaSessionOptions& options, const SessionDescription* current_description)
+        AddVideoContentForOffer(options, current_description, video_rtp_extensions, video_codecs, &current_streams, offer.get())
+
+bool MediaSessionDescriptionFactory::AddVideoContentForOffer(const MediaSessionOptions& options, ...)
+        CreateMediaContentOffer(
+                  options,
+                  video_codecs,
+                  sdes_policy,
+                  GetCryptos(GetFirstVideoContentDescription(current_description)),
+                  crypto_suites,
+                  video_rtp_extensions,
+                  add_legacy_,
+                  current_streams,
+                  video.get())
+        video->set_bandwidth(options.video_bandwidth);
+	====>	MediaSessionOptions.video_bandwidth = kAutoBandwidth = -1;
+--------------------------------------------------------------------------------------------------------------
+
+
+
+
